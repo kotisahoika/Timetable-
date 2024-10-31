@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鉄道旅タイムテーブル</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #FFFFFF;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1E1E1E;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            color: #FFD700;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-size: 0.9em;
+            color: #AAAAAA;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"], input[type="time"], input[type="number"] {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #333333;
+            color: #FFFFFF;
+            font-size: 1em;
+        }
+
+        button {
+            padding: 10px;
+            margin-top: 5px;
+            background-color: #FFD700;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #121212;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #FFC107;
+        }
+
+        .timetable {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .train-card {
+            display: flex;
+            align-items: center;
+            background-color: #252525;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            font-size: 0.9em;
+            position: relative;
+            transition: transform 0.3s ease;
+            overflow: hidden;
+        }
+
+        .train-card .info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .train-card .info span {
+            margin: 3px 0;
+        }
+
+        .highlight {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        /* 削除ボタンのスタイル */
+        .delete-button {
+            position: absolute;
+            right: -70px;
+            top: 0;
+            height: 100%;
+            width: 70px;
+            background-color: #FF5722;
+            color: #FFFFFF;
+            border: none;
+            font-size: 0.9em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: right 0.3s ease;
+        }
+
+        /* スワイプされたときに削除ボタンを表示 */
+        .train-card.swiped .delete-button {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>鉄道旅タイムテーブル</h1>
+
+        <div class="input-group">
+            <label for="day-number">何日目</label>
+            <input type="number" id="day-number" placeholder="例: 1" min="1">
+        </div>
+
+        <div class="input-group">
+            <label for="train-type">列車種別</label>
+            <input type="text" id="train-type" placeholder="例: こだま、ひかりなど">
+        </div>
+
+        <div class="input-group">
+            <label for="train-number">列車番号</label>
+            <input type="text" id="train-number" placeholder="例: こだま730号">
+        </div>
+
+        <div class="input-group">
+            <label for="departure-station">発車駅</label>
+            <input type="text" id="departure-station" placeholder="例: 東京駅">
+        </div>
+
+        <div class="input-group">
+            <label for="arrival-station">到着駅</label>
+            <input type="text" id="arrival-station" placeholder="例: 新大阪駅">
+        </div>
+
+        <div class="input-group">
+            <label for="departure-time">発車時刻</label>
+            <input type="time" id="departure-time">
+        </div>
+
+        <div class="input-group">
+            <label for="arrival-time">到着時刻</label>
+            <input type="time" id="arrival-time">
+        </div>
+
+        <div class="input-group">
+            <label for="platform">発車番線</label>
+            <input type="text" id="platform" placeholder="例: 5番">
+        </div>
+
+        <button onclick="addTrainInfo()">タイムテーブルに追加</button>
+        <button onclick="downloadTimetable()">ダウンロード</button>
+        <button onclick="uploadTimetable()">アップロード</button>
+
+        <input type="file" id="fileInput" style="display: none;" onchange="handleFileUpload(event)">
+        
+        <div class="timetable" id="timetable"></div>
+    </div>
+
+    <script>
+        let trainInfoList = [];
+
+        function addTrainInfo() {
+            const dayNumber = document.getElementById("day-number").value;
+            const trainType = document.getElementById("train-type").value;
+            const trainNumber = document.getElementById("train-number").value;
+            const departureStation = document.getElementById("departure-station").value;
+            const arrivalStation = document.getElementById("arrival-station").value;
+            const departureTime = document.getElementById("departure-time").value;
+            const arrivalTime = document.getElementById("arrival-time").value;
+            const platform = document.getElementById("platform").value;
+
+            const trainInfo = {
+                id: Date.now(),
+                dayNumber: dayNumber ? parseInt(dayNumber) : null,
+                trainType,
+                trainNumber,
+                departureStation,
+                arrivalStation,
+                departureTime,
+                arrivalTime,
+                platform
+            };
+
+            trainInfoList.push(trainInfo);
+            trainInfoList.sort((a, b) => {
+                const dayDiff = (a.dayNumber || 0) - (b.dayNumber || 0);
+                if (dayDiff !== 0) return dayDiff;
+                return a.departureTime.localeCompare(b.departureTime);
+            });
+
+            updateTimetable();
+            clearInputs();
+        }
+
+        function clearInputs() {
+            document.getElementById("day-number").value = "";
+            document.getElementById("train-type").value = "";
+            document.getElementById("train-number").value = "";
+            document.getElementById("departure-station").value = "";
+            document.getElementById("arrival-station").value = "";
+            document.getElementById("departure-time").value = "";
+            document.getElementById("arrival-time").value = "";
+            document.getElementById("platform").value = "";
+        }
+
+        function updateTimetable() {
+            const timetableDiv = document.getElementById("timetable");
+            timetableDiv.innerHTML = "";
+
+            trainInfoList.forEach(info => {
+                const card = document.createElement("div");
+                card.className = "train-card";
+                card.innerHTML = `
+                    <div class="info">
+                        <span><span class="highlight">${info.trainType}</span> ${info.trainNumber}</span>
+                        <span>${info.departureStation} → ${info.arrivalStation}</span>
+                    </div>
+                    <div class="info">
+                        <span>${info.departureTime} - ${info.arrivalTime}</span>
+                        <span>発車番線: ${info.platform}</span>
+                    </div>
+                    <button class="delete-button" onclick="deleteTrainInfo(${info.id})">削除</button>
+                `;
+
+                let startX;
+                card.addEventListener("touchstart", (e) => startX = e.touches[0].clientX);
+                card.addEventListener("touchmove", (e) => {
+                    const diffX = e.touches[0].clientX - startX;
+                    if (diffX < -50) {
+                        card.classList.add("swiped");
+                    } else if (diffX > 50) {
+                        card.classList.remove("swiped");
+                    }
+                });
+
+                timetableDiv.appendChild(card);
+            });
+        }
+
+        function deleteTrainInfo(id) {
+            trainInfoList = trainInfoList.filter(info => info.id !== id);
+            updateTimetable();
+        }
+
+        function downloadTimetable() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trainInfoList));
+            const downloadAnchor = document.createElement("a");
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "timetable.json");
+            downloadAnchor.click();
+        }
+
+        function uploadTimetable() {
+            document.getElementById("fileInput").click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        trainInfoList = JSON.parse(e.target.result);
+                        updateTimetable();
+                    } catch (error) {
+                        alert("アップロードに失敗しました。");
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>
